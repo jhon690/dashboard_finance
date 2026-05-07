@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Medical Finance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#05070f;--surface:#0d1117;--card:#111827;--border:#1e2a3a;
+  --accent:#00d4ff;--accent2:#7c3aed;--green:#10b981;--red:#ef4444;--orange:#f59e0b;
+  --text:#e2e8f0;--muted:#64748b;--white:#fff;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;overflow-x:hidden;}
+
+/* Grid bg */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);
+  background-size:40px 40px;opacity:0.3;pointer-events:none;z-index:0;
+}
+
+.wrapper{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:24px 20px;}
+
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:12px;}
+.header-left h1{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;color:var(--white);}
+.header-left h1 span{color:var(--accent);}
+.header-left p{font-size:0.7rem;color:var(--muted);margin-top:2px;}
+.badge{background:linear-gradient(135deg,#00d4ff22,#7c3aed22);border:1px solid #00d4ff44;border-radius:6px;padding:4px 10px;font-size:0.65rem;color:var(--accent);letter-spacing:0.08em;}
+
+/* Upload zone */
+.upload-zone{
+  border:2px dashed #1e2a3a;border-radius:16px;
+  background:linear-gradient(135deg,#0d1117,#111827);
+  padding:60px 40px;text-align:center;cursor:pointer;
+  transition:all 0.3s;margin-bottom:24px;
+  position:relative;overflow:hidden;
+}
+.upload-zone::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 50% 50%,#00d4ff08,transparent 70%);
+  pointer-events:none;
+}
+.upload-zone:hover{border-color:#00d4ff66;background:linear-gradient(135deg,#0d1117,#0f1a2e);}
+.upload-zone.drag{border-color:var(--accent);background:#00d4ff08;}
+.upload-icon{font-size:3rem;margin-bottom:16px;}
+.upload-zone h2{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:700;color:var(--white);margin-bottom:8px;}
+.upload-zone p{font-size:0.75rem;color:var(--muted);}
+.upload-zone input{display:none;}
+.btn-upload{
+  display:inline-block;margin-top:20px;padding:10px 24px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border:none;border-radius:8px;color:#000;font-family:'Syne',sans-serif;
+  font-weight:700;font-size:0.8rem;letter-spacing:0.05em;cursor:pointer;
+  transition:all 0.2s;
+}
+.btn-upload:hover{transform:translateY(-2px);box-shadow:0 8px 24px #00d4ff33;}
+
+/* Sheet selector */
+.sheet-config{display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;}
+.sheet-config h3{font-family:'Syne',sans-serif;font-size:0.9rem;font-weight:700;color:var(--white);margin-bottom:14px;}
+.sheets-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+.sheet-item{
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;cursor:pointer;transition:all 0.2s;
+  display:flex;align-items:center;gap:8px;
+}
+.sheet-item:hover{border-color:#00d4ff44;}
+.sheet-item.selected{border-color:var(--accent);background:#00d4ff0a;}
+.sheet-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background 0.2s;}
+.sheet-item.selected .sheet-dot{background:var(--accent);}
+.sheet-name{font-size:0.75rem;color:var(--text);}
+.sheet-rows{font-size:0.62rem;color:var(--muted);}
+
+/* Progress */
+.progress-bar{height:3px;background:var(--border);border-radius:2px;margin:16px 0;overflow:hidden;display:none;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width 0.3s;width:0%;}
+
+/* KPIs */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;}
+.kpi-card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:18px 20px;position:relative;overflow:hidden;
+}
+.kpi-card::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--accent-color,var(--accent));
+}
+.kpi-label{font-size:0.65rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;}
+.kpi-value{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:var(--white);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kpi-sub{font-size:0.62rem;color:var(--muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kpi-delta{font-size:0.7rem;font-weight:600;margin-top:4px;}
+.kpi-delta.up{color:var(--green);}
+.kpi-delta.down{color:var(--red);}
+
+/* Charts */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;}
+.chart-card.full{grid-column:1/-1;}
+.chart-title{font-family:'Syne',sans-serif;font-size:0.8rem;font-weight:700;color:var(--white);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.chart-title .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+canvas{max-height:260px;}
+
+/* Table */
+.table-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:20px;}
+.table-title{font-family:'Syne',sans-serif;font-size:0.8rem;font-weight:700;color:var(--white);margin-bottom:14px;}
+.table-wrap{overflow-x:auto;max-height:320px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;font-size:0.72rem;}
+thead th{background:#0d1117;color:var(--muted);text-align:left;padding:8px 12px;font-weight:500;letter-spacing:0.05em;position:sticky;top:0;border-bottom:1px solid var(--border);}
+tbody tr{border-bottom:1px solid #1e2a3a11;transition:background 0.15s;}
+tbody tr:hover{background:#ffffff06;}
+tbody td{padding:8px 12px;color:var(--text);}
+.td-green{color:var(--green);}
+.td-red{color:var(--red);}
+.td-orange{color:var(--orange);}
+
+/* Filters */
+.filters-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.filter-group{display:flex;flex-direction:column;gap:4px;}
+.filter-label{font-size:0.62rem;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;}
+select,input[type=text]{
+  background:var(--card);border:1px solid var(--border);border-radius:7px;
+  padding:7px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.75rem;
+  outline:none;transition:border-color 0.2s;min-width:160px;
+}
+select:focus,input:focus{border-color:var(--accent);}
+.btn-clear{
+  background:transparent;border:1px solid var(--border);border-radius:7px;
+  padding:7px 14px;color:var(--muted);font-size:0.72rem;cursor:pointer;
+  transition:all 0.2s;align-self:flex-end;
+}
+.btn-clear:hover{border-color:var(--red);color:var(--red);}
+
+/* Empty */
+.empty{display:none;text-align:center;padding:80px 20px;}
+.empty.show{display:block;}
+#dashboard{display:none;}
+#dashboard.show{display:block;}
+
+@media(max-width:768px){
+  .charts-row{grid-template-columns:1fr;}
+  .chart-card.full{grid-column:auto;}
+  .kpi-value{font-size:1.3rem;}
+}
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <div class="header-left">
+      <h1>Medical <span>Finance</span> Dashboard</h1>
+      <p>Unified member analytics — Revenue vs Claims</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="badge" id="file-badge">NO FILE LOADED</div>
+      <div class="badge" id="members-badge" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()"
+    ondragover="event.preventDefault();this.classList.add('drag')"
+    ondragleave="this.classList.remove('drag')"
+    ondrop="event.preventDefault();this.classList.remove('drag');handleFile(event.dataTransfer.files[0])">
+    <div class="upload-icon">📊</div>
+    <h2>Carga tu archivo Excel</h2>
+    <p>Arrastra o haz click — soporta .xlsx y .xls</p>
+    <button class="btn-upload" onclick="event.stopPropagation();document.getElementById('file-input').click()">Seleccionar archivo</button>
+    <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleFile(this.files[0])"/>
+  </div>
+
+  <!-- Sheet config -->
+  <div class="sheet-config" id="sheet-config">
+    <h3>📋 Hojas detectadas — selecciona las que contienen gastos (FFS/Rx/CAP/OTC/FDR)</h3>
+    <div class="sheets-grid" id="sheets-grid"></div>
+    <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+      <div class="filter-group">
+        <div class="filter-label">Hoja de ingresos (MMR)</div>
+        <select id="mmr-select"><option value="">— Selecciona —</option></select>
+      </div>
+      <div style="align-self:flex-end">
+        <button class="btn-upload" onclick="processData()" style="margin-top:0">▶ Procesar datos</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard">
+
+    <!-- Filters -->
+    <div class="filters-row">
+      <div class="filter-group">
+        <div class="filter-label">Período (MemberMonth)</div>
+        <select id="filter-month" onchange="applyFilters()"><option value="">Todos</option></select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Tipo de gasto (ClaimCat)</div>
+        <select id="filter-cat" onchange="applyFilters()"><option value="">Todos</option></select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Buscar MemberID</div>
+        <input type="text" id="filter-member" placeholder="ID del miembro..." oninput="applyFilters()"/>
+      </div>
+      <button class="btn-clear" onclick="clearFilters()">↺ Limpiar</button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card" style="--accent-color:#00d4ff">
+        <div class="kpi-label">Total Ingresos (TotalRevenue)</div>
+        <div class="kpi-value" id="kpi-revenue">—</div>
+        <div class="kpi-sub" id="kpi-revenue-sub">—</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:#ef4444">
+        <div class="kpi-label">Total Gastos (PlanPaidAmount)</div>
+        <div class="kpi-value" id="kpi-claims">—</div>
+        <div class="kpi-sub" id="kpi-claims-sub">—</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:#10b981">
+        <div class="kpi-label">Margen Neto</div>
+        <div class="kpi-value" id="kpi-margin">—</div>
+        <div class="kpi-delta" id="kpi-margin-pct">—</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:#7c3aed">
+        <div class="kpi-label">Total Miembros</div>
+        <div class="kpi-value" id="kpi-members">—</div>
+        <div class="kpi-sub" id="kpi-members-sub">Únicos por MemberID</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:#f59e0b">
+        <div class="kpi-label">Gasto Promedio / Miembro</div>
+        <div class="kpi-value" id="kpi-avg">—</div>
+        <div class="kpi-sub">PlanPaidAmount / miembros</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:#06b6d4">
+        <div class="kpi-label">Ingreso Promedio / Miembro</div>
+        <div class="kpi-value" id="kpi-avg-rev">—</div>
+        <div class="kpi-sub">PartDRevenue / miembros</div>
+      </div>
+    </div>
+
+    <!-- Charts row 1 -->
+    <div class="charts-row">
+      <div class="chart-card full">
+        <div class="chart-title"><div class="dot"></div>Ingresos vs Gastos por período (MemberMonth)</div>
+        <canvas id="chart-timeline"></canvas>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title"><div class="dot" style="background:#ef4444"></div>Gastos por ClaimCat</div>
+        <canvas id="chart-claims"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><div class="dot" style="background:#10b981"></div>Margen por Utilidad</div>
+        <canvas id="chart-margin"></canvas>
+      </div>
+    </div>
+
+    <!-- Miembros en déficit consecutivo -->
+    <div class="charts-row">
+      <div class="chart-card full">
+        <div class="chart-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="dot" style="background:#ef4444"></div>
+            Miembros en Déficit Consecutivo
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:0.68rem;color:var(--muted)">Meses mínimos en déficit:</span>
+            <select id="deficit-months-filter" onchange="updateDeficitChart()" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 8px;color:var(--text);font-size:0.72rem;width:auto;min-width:60px">
+              <option value="1">1+</option>
+              <option value="2" selected>2+</option>
+              <option value="3">3+</option>
+              <option value="4">4+</option>
+              <option value="6">6+</option>
+            </select>
+            <span id="deficit-consecutive-count" style="font-size:0.75rem;color:#ef4444;font-weight:700">— miembros</span>
+          </div>
+        </div>
+        <canvas id="chart-deficit-consecutive" style="max-height:280px"></canvas>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-card">
+      <div class="table-title">📋 Déficit &gt;90% — <span id="deficit-count" style="color:#ef4444">—</span> miembros</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>MemberID</th>
+              <th>Ingresos</th>
+              <th>Gastos</th>
+              <th>Déficit</th>
+              <th>% Gasto/Ingreso</th>
+              <th>Categorías</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /dashboard -->
+</div>
+
+<script>
+let workbook = null;
+let masterData = []; // datos unificados por MemberID
+let mmrData = [];
+let claimsData = [];
+let filteredData = [];
+let charts = {};
+
+// ── File handling ──────────────────────────────────────────────
+function handleFile(file){
+  if(!file) return;
+  document.getElementById('file-badge').textContent = file.name.toUpperCase();
+  const reader = new FileReader();
+  reader.onload = e => {
+    workbook = XLSX.read(e.target.result, {type:'array', cellDates:true});
+    detectSheets();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function detectSheets(){
+  const grid = document.getElementById('sheets-grid');
+  const mmrSel = document.getElementById('mmr-select');
+  grid.innerHTML = '';
+  mmrSel.innerHTML = '<option value="">— Selecciona —</option>';
+
+  workbook.SheetNames.forEach(name => {
+    const ws = workbook.Sheets[name];
+    const data = XLSX.utils.sheet_to_json(ws, {header:1});
+    const rows = data.length;
+
+    // Sheet item (para gastos)
+    const div = document.createElement('div');
+    div.className = 'sheet-item';
+    div.dataset.name = name;
+    div.innerHTML = `<div class="sheet-dot"></div>
+      <div><div class="sheet-name">${name}</div><div class="sheet-rows">${rows} filas</div></div>`;
+    div.onclick = () => div.classList.toggle('selected') || div.querySelector('.sheet-dot');
+    div.onclick = () => {
+      div.classList.toggle('selected');
+      div.querySelector('.sheet-dot').style.background =
+        div.classList.contains('selected') ? 'var(--accent)' : 'var(--muted)';
+    };
+    grid.appendChild(div);
+
+    // MMR selector
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    mmrSel.appendChild(opt);
+
+    // Auto-detectar MMR
+    const headers = data[0] || [];
+    if(name.toLowerCase().includes('mmr') || 
+       headers.some(h=>(h+'').toLowerCase().replace(/\s/g,'').includes('totalrevenue')||
+                       (h+'').toLowerCase().replace(/\s/g,'').includes('partdrevenue'))){
+      mmrSel.value = name;
+    }
+    // Auto-seleccionar hojas de gastos
+    if(name.toLowerCase().includes('ffs') || name.toLowerCase().includes('raw data f') ||
+       ['rx','cap','otc','fdr'].some(k=>name.toLowerCase().includes(k))){
+      div.classList.add('selected');
+      div.querySelector('.sheet-dot').style.background = 'var(--accent)';
+    }
+  });
+
+  document.getElementById('sheet-config').style.display = 'block';
+}
+
+// ── Process data ───────────────────────────────────────────────
+function processData(){
+  const mmrName = document.getElementById('mmr-select').value;
+  const claimsSheets = [...document.querySelectorAll('.sheet-item.selected')].map(d=>d.dataset.name);
+
+  if(!mmrName){ alert('Selecciona la hoja de ingresos (MMR)'); return; }
+
+  // Progress
+  const pb = document.getElementById('progress-bar');
+  const pf = document.getElementById('progress-fill');
+  pb.style.display = 'block'; pf.style.width = '10%';
+
+  setTimeout(() => {
+    // Leer MMR
+    const mmrWS = workbook.Sheets[mmrName];
+    const mmrRaw = XLSX.utils.sheet_to_json(mmrWS, {defval:'', raw:false});
+    pf.style.width = '30%';
+
+    // Detectar columnas MMR
+    const mmrCols = Object.keys(mmrRaw[0]||{});
+    const memberCol = findCol(mmrCols, ['memberid','member_id','id']);
+    const revCol    = findCol(mmrCols, ['totalrevenue','total_revenue','partdrevenue','revenue']);
+    const monthCol  = findCol(mmrCols, ['membermonth','member_month','month','period']);
+
+    mmrData = mmrRaw.map(r => ({
+      memberId: r[memberCol]+'',
+      revenue:  parseAmount(r[revCol]),
+      month:    formatMonth(r[monthCol])
+    })).filter(r => r.memberId && r.memberId !== 'undefined');
+
+    pf.style.width = '50%';
+
+    // Leer hojas de gastos
+    claimsData = [];
+    claimsSheets.forEach((sheetName, si) => {
+      const ws = workbook.Sheets[sheetName];
+      const raw = XLSX.utils.sheet_to_json(ws, {defval:'', raw:false});
+      if(!raw.length) return;
+      const cols = Object.keys(raw[0]);
+      const mCol = findCol(cols, ['memberid','member_id','id']);
+      const aCol = findCol(cols, ['planpaidamount','paidamount','amount','paid']);
+      const cCol = findCol(cols, ['claimcat','claim_cat','category','cat','type']);
+      const dCol = findCol(cols, ['membermonth','member_month','servicedate','month']);
+
+      raw.forEach(r => {
+        const mid = (r[mCol]+'').trim();
+        if(!mid || mid === 'undefined' || mid === 'null' || mid === '') return;
+        claimsData.push({
+          memberId:  mid,
+          amount:    parseAmount(r[aCol]),
+          claimCat:  r[cCol] ? r[cCol]+'' : sheetName,
+          month:     formatMonth(r[dCol]),
+          sheet:     sheetName
+        });
+      });
+    });
+
+    pf.style.width = '80%';
+
+    // Unificar por MemberID
+    buildMasterData();
+    pf.style.width = '100%';
+
+    setTimeout(() => {
+      pb.style.display = 'none';
+      document.getElementById('dashboard').classList.add('show');
+      document.getElementById('members-badge').style.display = 'block';
+      document.getElementById('members-badge').textContent = masterData.length + ' MIEMBROS';
+      populateFilters();
+      applyFilters();
+    }, 300);
+  }, 100);
+}
+
+function findCol(cols, keys){
+  for(const key of keys){
+    const found = cols.find(c => c.toLowerCase().replace(/[\s_]/g,'').includes(key.replace(/[\s_]/g,'')));
+    if(found) return found;
+  }
+  return cols[0]; // fallback primera columna
+}
+
+function parseAmount(val){
+  if(val===null||val===undefined||val==='') return 0;
+  if(typeof val === 'number' && !isNaN(val)) return val;
+  let s = (val+'').trim();
+
+  // Detectar negativo por paréntesis: $(4,54) → -4.54
+  const isNeg = s.startsWith('(') || (s.startsWith('$(') || s.startsWith('(-'));
+  
+  // Limpiar: quitar $, paréntesis, espacios
+  s = s.replace(/[$€£¥()\s]/g,'').trim();
+  if(!s || s==='-' || s==='') return 0;
+
+  // Ahora s puede ser: 230,00 / 1.363,98 / 1,363.98 / 4.54 / 4,54
+  const dotCount   = (s.match(/\./g)||[]).length;
+  const commaCount = (s.match(/,/g)||[]).length;
+  const lastDot    = s.lastIndexOf('.');
+  const lastComma  = s.lastIndexOf(',');
+
+  if(dotCount > 0 && commaCount > 0){
+    if(lastComma > lastDot){
+      // Europeo: 1.363,98 → punto=miles, coma=decimal
+      s = s.replace(/\./g,'').replace(',','.');
+    } else {
+      // Americano: 1,363.98 → coma=miles, punto=decimal
+      s = s.replace(/,/g,'');
+    }
+  } else if(commaCount === 1 && dotCount === 0){
+    // Solo coma: 230,00 o 1363,98 o 1,363
+    const parts = s.split(',');
+    const afterComma = parts[1] || '';
+    if(afterComma.length <= 2){
+      // Decimal europeo: 230,00 → 230.00
+      s = s.replace(',','.');
+    } else {
+      // Miles: 1,363 → 1363
+      s = s.replace(',','');
+    }
+  } else if(dotCount === 1 && commaCount === 0){
+    // Solo punto: ya es decimal normal 230.00
+    // no hacer nada
+  } else if(dotCount > 1 && commaCount === 0){
+    // Múltiples puntos como miles europeo: 1.363.000 → 1363000
+    s = s.replace(/\./g,'');
+  }
+
+  const result = parseFloat(s);
+  if(isNaN(result)) return 0;
+  return isNeg ? -Math.abs(result) : result;
+}
+
+function formatMonth(val){
+  if(!val) return '';
+  if(val instanceof Date){
+    return val.toLocaleDateString('en-US',{year:'numeric',month:'short'});
+  }
+  const s = (val+'').replace(/[^0-9]/g,'').trim();
+  // YYYYMM (202504) o YYYYMMDD
+  if(s.length >= 6){
+    const year  = s.slice(0,4);
+    const month = s.slice(4,6);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mIdx = parseInt(month,10)-1;
+    if(mIdx >= 0 && mIdx < 12) return months[mIdx]+' '+year;
+  }
+  return val+'';
+}
+
+function buildMasterData(){
+  const map = {};
+
+  // Revenue
+  mmrData.forEach(r => {
+    if(!map[r.memberId]) map[r.memberId] = {memberId:r.memberId,revenue:0,claims:0,months:new Set(),cats:new Set()};
+    map[r.memberId].revenue += r.revenue;
+    if(r.month) map[r.memberId].months.add(r.month);
+  });
+
+  // Claims
+  claimsData.forEach(r => {
+    if(!map[r.memberId]) map[r.memberId] = {memberId:r.memberId,revenue:0,claims:0,months:new Set(),cats:new Set()};
+    map[r.memberId].claims += r.amount;
+    if(r.month) map[r.memberId].months.add(r.month);
+    if(r.claimCat) map[r.memberId].cats.add(r.claimCat);
+  });
+
+  masterData = Object.values(map).map(m => ({
+    ...m,
+    margin: m.revenue - m.claims,
+    months: [...m.months].sort(),
+    cats: [...m.cats]
+  }));
+}
+
+// ── Filters ────────────────────────────────────────────────────
+function populateFilters(){
+  const months = [...new Set([...mmrData.map(r=>r.month),...claimsData.map(r=>r.month)].filter(Boolean))].sort();
+  const cats   = [...new Set(claimsData.map(r=>r.claimCat).filter(Boolean))].sort();
+
+  const mSel = document.getElementById('filter-month');
+  months.forEach(m => { const o=document.createElement('option'); o.value=m; o.textContent=m; mSel.appendChild(o); });
+
+  const cSel = document.getElementById('filter-cat');
+  cats.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; cSel.appendChild(o); });
+}
+
+function clearFilters(){
+  document.getElementById('filter-month').value='';
+  document.getElementById('filter-cat').value='';
+  document.getElementById('filter-member').value='';
+  applyFilters();
+}
+
+function applyFilters(){
+  const month  = document.getElementById('filter-month').value;
+  const cat    = document.getElementById('filter-cat').value;
+  const member = document.getElementById('filter-member').value.toLowerCase().trim();
+
+  // Filtrar mmrData y claimsData
+  const fMMR    = mmrData.filter(r => (!month || r.month===month));
+  const fClaims = claimsData.filter(r => (!month || r.month===month) && (!cat || r.claimCat===cat));
+
+  // Rebuild filtered master
+  const map = {};
+  fMMR.forEach(r => {
+    if(!map[r.memberId]) map[r.memberId]={memberId:r.memberId,revenue:0,claims:0,months:new Set(),cats:new Set()};
+    map[r.memberId].revenue += r.revenue;
+    if(r.month) map[r.memberId].months.add(r.month);
+  });
+  fClaims.forEach(r => {
+    if(!map[r.memberId]) map[r.memberId]={memberId:r.memberId,revenue:0,claims:0,months:new Set(),cats:new Set()};
+    map[r.memberId].claims += r.amount;
+    if(r.month) map[r.memberId].months.add(r.month);
+    if(r.claimCat) map[r.memberId].cats.add(r.claimCat);
+  });
+
+  filteredData = Object.values(map).map(m=>({...m,margin:m.revenue-m.claims,months:[...m.months].sort(),cats:[...m.cats]}));
+
+  if(member) filteredData = filteredData.filter(m=>m.memberId.toLowerCase().includes(member));
+
+  updateKPIs();
+  updateCharts(month, cat, member);
+  updateTable();
+  updateDeficitChart();
+}
+
+// ── KPIs ───────────────────────────────────────────────────────
+function fmt(n){ return '$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtK(n){ const a=Math.abs(n); return a>=1000000?'$'+(a/1000000).toFixed(2)+'M':a>=1000?'$'+(a/1000).toFixed(1)+'K':fmt(a); }
+function fmtExact(n){
+  const a = Math.abs(n);
+  // Mostrar abreviado en KPI pero con tooltip exacto
+  if(a>=1000000) return '$'+(a/1000000).toFixed(2)+'M';
+  if(a>=1000)    return '$'+(a/1000).toFixed(1)+'K';
+  return fmt(a);
+}
+
+function updateKPIs(){
+  const totalRev   = filteredData.reduce((s,m)=>s+m.revenue,0);
+  const totalClaim = filteredData.reduce((s,m)=>s+m.claims,0);
+  const margin     = totalRev - totalClaim;
+  const members    = filteredData.length;
+  const marginPct  = totalRev!==0?((margin/totalRev)*100).toFixed(1):0;
+
+  document.getElementById('kpi-revenue').textContent    = fmtExact(totalRev);
+  document.getElementById('kpi-revenue').title = '$'+totalRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('kpi-revenue-sub').textContent= fmt(totalRev)+' · '+members+' miembros';
+  document.getElementById('kpi-claims').textContent     = fmtExact(totalClaim);
+  document.getElementById('kpi-claims').title = '$'+totalClaim.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('kpi-claims-sub').textContent = fmt(totalClaim);
+  document.getElementById('kpi-margin').textContent     = fmtExact(margin);
+  document.getElementById('kpi-margin').title = '$'+Math.abs(margin).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('kpi-margin').style.color     = margin>=0?'var(--green)':'var(--red)';
+  const mEl = document.getElementById('kpi-margin-pct');
+  mEl.textContent = (margin>=0?'▲ ':'▼ ')+Math.abs(marginPct)+'% de los ingresos';
+  mEl.className   = 'kpi-delta '+(margin>=0?'up':'down');
+  document.getElementById('kpi-members').textContent    = members.toLocaleString();
+  document.getElementById('kpi-avg').textContent        = members?fmtK(totalClaim/members):'—';
+  document.getElementById('kpi-avg-rev').textContent    = members?fmtK(totalRev/members):'—';
+}
+
+// ── Charts ─────────────────────────────────────────────────────
+function destroyChart(id){ if(charts[id]){try{charts[id].destroy();}catch(e){} delete charts[id];} }
+
+function sortMonths(arr){
+  // Ordenar meses cronológicamente convirtiendo "Apr 2025" → número comparable
+  const MONS={Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+  return arr.sort((a,b)=>{
+    const pa=a.split(' '), pb=b.split(' ');
+    const ya=parseInt(pa[1]||0), yb=parseInt(pb[1]||0);
+    const ma=MONS[pa[0]]||0, mb=MONS[pb[0]]||0;
+    return ya!==yb ? ya-yb : ma-mb;
+  });
+}
+
+function updateCharts(monthFilter, catFilter, memberFilter){
+  // Filtrar datos base según todos los filtros activos
+  const fMMR    = mmrData.filter(r=>
+    (!monthFilter || r.month===monthFilter) &&
+    (!memberFilter || r.memberId.toLowerCase().includes(memberFilter))
+  );
+  const fClaims = claimsData.filter(r=>
+    (!monthFilter || r.month===monthFilter) &&
+    (!catFilter   || r.claimCat===catFilter) &&
+    (!memberFilter || r.memberId.toLowerCase().includes(memberFilter))
+  );
+
+  const allM = [...new Set([...fMMR.map(r=>r.month),...fClaims.map(r=>r.month)].filter(Boolean))];
+  const months = sortMonths(allM);
+  const revByMonth = {}, claimsByMonth = {};
+  fMMR.forEach(r=>{ revByMonth[r.month]=(revByMonth[r.month]||0)+r.revenue; });
+  fClaims.forEach(r=>{ claimsByMonth[r.month]=(claimsByMonth[r.month]||0)+r.amount; });
+
+  destroyChart('timeline');
+  const tl = document.getElementById('chart-timeline');
+  charts['timeline'] = new Chart(tl, {
+    type:'line',
+    data:{
+      labels: months,
+      datasets:[
+        { label:'Ingresos (TotalRevenue)', data:months.map(m=>revByMonth[m]||0),
+          borderColor:'#00d4ff', backgroundColor:'#00d4ff22', fill:true, tension:0.4, pointRadius:4 },
+        { label:'Gastos (Plan)', data:months.map(m=>claimsByMonth[m]||0),
+          borderColor:'#ef4444', backgroundColor:'#ef444422', fill:true, tension:0.4, pointRadius:4 }
+      ]
+    },
+    options:{responsive:true, interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#a0aec0',font:{size:11}}},
+        tooltip:{callbacks:{
+          afterBody:(items)=>{
+            const rev   = items.find(i=>i.datasetIndex===0)?.raw||0;
+            const claim = items.find(i=>i.datasetIndex===1)?.raw||0;
+            if(!rev) return [];
+            const pct = ((claim/rev)*100).toFixed(1);
+            const margin = rev - claim;
+            return [
+              '─────────────────────',
+              '% Gasto/Ingreso: '+pct+'%',
+              (margin>=0?'✅ Utilidad: ':'▼ Déficit: ')+fmtK(Math.abs(margin))
+            ];
+          }
+        }}
+      },
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#1e2a3a'}},
+        y:{ticks:{color:'#64748b',font:{size:10},callback:v=>fmtK(v)},grid:{color:'#1e2a3a'}}
+      }}
+  });
+
+  // Claims by cat
+  const catMap = {};
+  fClaims.forEach(r=>{ catMap[r.claimCat]=(catMap[r.claimCat]||0)+r.amount; });
+  const cats = Object.keys(catMap).sort((a,b)=>catMap[b]-catMap[a]);
+  const COLORS=['#ef4444','#f59e0b','#10b981','#7c3aed','#00d4ff','#fc8181','#a78bfa','#6ee7b7'];
+
+  destroyChart('claims');
+  const cl = document.getElementById('chart-claims');
+  charts['claims'] = new Chart(cl, {
+    type:'doughnut',
+    data:{
+      labels:cats,
+      datasets:[{data:cats.map(c=>catMap[c]),backgroundColor:COLORS,borderWidth:1,borderColor:'#111827'}]
+    },
+    options:{responsive:true,
+      plugins:{legend:{position:'right',labels:{color:'#a0aec0',font:{size:10},boxWidth:10}},
+        tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+fmtK(ctx.raw)+' ('+((ctx.raw/Object.values(catMap).reduce((a,b)=>a+b,0))*100).toFixed(1)+'%)'}}}
+    }
+  });
+
+  // Margin by month
+  destroyChart('margin');
+  const mg = document.getElementById('chart-margin');
+  // Unir todos los meses de revenue Y claims para no perder ninguno
+  // Para Margen: usar TODOS los meses (sin filtro de mes) para ver tendencia completa
+  const fMMR_mg = mmrData.filter(r=> !memberFilter || r.memberId.toLowerCase().includes(memberFilter));
+  const fClaims_mg = claimsData.filter(r=>
+    (!catFilter || r.claimCat===catFilter) &&
+    (!memberFilter || r.memberId.toLowerCase().includes(memberFilter))
+  );
+  const revMg={}, claimMg={};
+  fMMR_mg.forEach(r=>{ revMg[r.month]=(revMg[r.month]||0)+r.revenue; });
+  fClaims_mg.forEach(r=>{ claimMg[r.month]=(claimMg[r.month]||0)+r.amount; });
+  const allMonthsMg = sortMonths([...new Set([...Object.keys(revMg),...Object.keys(claimMg)])]);
+  const marginByMonth = allMonthsMg.map(m=>(revMg[m]||0)-(claimMg[m]||0));
+  charts['margin'] = new Chart(mg, {
+    type:'bar',
+    data:{
+      labels:allMonthsMg,
+      datasets:[{
+        label:'Margen por Utilidad',
+        data:marginByMonth,
+        backgroundColor:marginByMonth.map(v=>v>=0?'#10b98155':'#ef444455'),
+        borderColor:marginByMonth.map(v=>v>=0?'#10b981':'#ef4444'),
+        borderWidth:2,
+        borderRadius:4
+      }]
+    },
+    options:{responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          label:ctx=>{
+            const v = ctx.raw;
+            return (v>=0?' ✅ Utilidad: ':' ▼ Déficit: ')+fmtK(Math.abs(v));
+          }
+        }}
+      },
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#1e2a3a'}},
+        y:{ticks:{color:'#64748b',font:{size:10},callback:v=>fmtK(v)},grid:{color:'#1e2a3a'},
+           min: Math.min(0, ...marginByMonth) * 1.15,
+           grace: '5%'}
+      }}
+  });
+}
+
+// ── Table ──────────────────────────────────────────────────────
+function updateTable(){
+  const tbody = document.getElementById('table-body');
+
+  // Filtrar miembros con déficit > 90% (gastos >= 90% de ingresos)
+  const sorted = [...filteredData]
+    .filter(m => {
+      if(m.revenue <= 0 && m.claims > 0) return true;
+      if(m.revenue <= 0) return false;
+      return (m.claims / m.revenue) >= 0.90;
+    })
+    .sort((a,b) => {
+      const pctA = a.revenue > 0 ? a.claims/a.revenue : 999;
+      const pctB = b.revenue > 0 ? b.claims/b.revenue : 999;
+      return pctB - pctA;
+    });
+
+  const defEl = document.getElementById('deficit-count');
+  if(defEl) defEl.textContent = sorted.length;
+
+  tbody.innerHTML = sorted.map(m=>{
+    const gPct   = m.revenue > 0 ? ((m.claims/m.revenue)*100).toFixed(1) : '∞';
+    const deficit = m.claims - m.revenue;
+    const clsDef  = deficit > 0 ? 'td-red' : 'td-green';
+    const clsPct  = parseFloat(gPct) >= 100 ? 'td-red' : 'td-orange';
+    return `<tr>
+      <td style="font-family:'Syne',sans-serif;font-weight:600;color:#00d4ff">${m.memberId}</td>
+      <td class="td-green">${fmt(m.revenue)}</td>
+      <td class="td-red">${fmt(m.claims)}</td>
+      <td class="${clsDef}">▼ ${fmt(Math.abs(deficit))}</td>
+      <td class="${clsPct}" style="font-weight:700">${gPct}%</td>
+      <td style="color:#64748b;font-size:0.65rem">${[...new Set(m.cats)].join(', ')||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateDeficitChart(){
+  const minMonths = parseInt(document.getElementById('deficit-months-filter')?.value||2);
+  const member = document.getElementById('filter-member')?.value.toLowerCase().trim()||'';
+
+  // Construir mapa: memberId → { mes: margen }
+  const memberMonthRev   = {}, memberMonthClaim = {};
+
+  mmrData.filter(r=>!member||r.memberId.toLowerCase().includes(member)).forEach(r=>{
+    if(!memberMonthRev[r.memberId]) memberMonthRev[r.memberId]={};
+    memberMonthRev[r.memberId][r.month]=(memberMonthRev[r.memberId][r.month]||0)+r.revenue;
+  });
+  claimsData.filter(r=>!member||r.memberId.toLowerCase().includes(member)).forEach(r=>{
+    if(!memberMonthClaim[r.memberId]) memberMonthClaim[r.memberId]={};
+    memberMonthClaim[r.memberId][r.month]=(memberMonthClaim[r.memberId][r.month]||0)+r.amount;
+  });
+
+  // Para cada miembro calcular meses en déficit y si son consecutivos
+  const deficitMembers = [];
+  const allMembers = [...new Set([...Object.keys(memberMonthRev),...Object.keys(memberMonthClaim)])];
+
+  allMembers.forEach(mid=>{
+    const revMap   = memberMonthRev[mid]||{};
+    const claimMap = memberMonthClaim[mid]||{};
+    const allM     = sortMonths([...new Set([...Object.keys(revMap),...Object.keys(claimMap)])]);
+
+    // Calcular margen por mes
+    const margins  = allM.map(m=>(revMap[m]||0)-(claimMap[m]||0));
+
+    // Encontrar máxima racha consecutiva en déficit
+    let maxStreak=0, currentStreak=0, totalDeficitMonths=0;
+    margins.forEach(mg=>{
+      if(mg<0){ currentStreak++; totalDeficitMonths++; maxStreak=Math.max(maxStreak,currentStreak); }
+      else currentStreak=0;
+    });
+
+    if(maxStreak>=minMonths){
+      const totalRev   = Object.values(revMap).reduce((a,b)=>a+b,0);
+      const totalClaim = Object.values(claimMap).reduce((a,b)=>a+b,0);
+      deficitMembers.push({
+        memberId: mid,
+        maxStreak,
+        totalDeficitMonths,
+        totalRev,
+        totalClaim,
+        deficit: totalClaim-totalRev
+      });
+    }
+  });
+
+  // Ordenar por mayor racha consecutiva
+  deficitMembers.sort((a,b)=>b.maxStreak-a.maxStreak || b.deficit-a.deficit);
+
+  const countEl = document.getElementById('deficit-consecutive-count');
+  if(countEl) countEl.textContent = deficitMembers.length+' miembros';
+
+  destroyChart('deficit-consecutive');
+  const ctx = document.getElementById('chart-deficit-consecutive');
+  if(!ctx||!deficitMembers.length) return;
+
+  const top = deficitMembers.slice(0,30); // top 30 para no saturar
+  charts['deficit-consecutive'] = new Chart(ctx.getContext('2d'),{
+    type:'bar',
+    data:{
+      labels: top.map(m=>m.memberId),
+      datasets:[
+        {
+          label:'Meses consecutivos en déficit',
+          data: top.map(m=>m.maxStreak),
+          backgroundColor:'#ef444488',
+          borderColor:'#ef4444',
+          borderWidth:1.5,
+          borderRadius:4,
+          yAxisID:'y'
+        },
+        {
+          label:'Déficit total ($)',
+          data: top.map(m=>m.deficit),
+          backgroundColor:'#f59e0b44',
+          borderColor:'#f59e0b',
+          borderWidth:1.5,
+          borderRadius:4,
+          type:'bar',
+          yAxisID:'y2'
+        }
+      ]
+    },
+    options:{
+      responsive:true,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#a0aec0',font:{size:10}}},
+        tooltip:{callbacks:{
+          label:ctx=>{
+            if(ctx.datasetIndex===0) return ' Racha: '+ctx.raw+' meses consecutivos';
+            return ' Déficit total: '+fmtK(ctx.raw);
+          },
+          afterBody:(items)=>{
+            const idx=items[0]?.dataIndex;
+            if(idx===undefined) return [];
+            const m=top[idx];
+            return ['─────────────','Ingresos: '+fmtK(m.totalRev),'Gastos: '+fmtK(m.totalClaim),'Total meses en déficit: '+m.totalDeficitMonths];
+          }
+        }}
+      },
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:9},maxRotation:45},grid:{color:'#1e2a3a'}},
+        y:{
+          position:'left',
+          ticks:{color:'#ef4444',font:{size:10},stepSize:1},
+          grid:{color:'#1e2a3a'},
+          title:{display:true,text:'Meses consecutivos',color:'#ef4444',font:{size:10}}
+        },
+        y2:{
+          position:'right',
+          ticks:{color:'#f59e0b',font:{size:10},callback:v=>fmtK(v)},
+          grid:{display:false},
+          title:{display:true,text:'Déficit ($)',color:'#f59e0b',font:{size:10}}
+        }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
