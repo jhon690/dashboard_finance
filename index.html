@@ -84,16 +84,18 @@ body::before{
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;}
 .kpi-card{
   background:var(--card);border:1px solid var(--border);border-radius:12px;
-  padding:18px 20px;position:relative;overflow:hidden;
+  padding:20px 22px;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:space-between;
 }
 .kpi-card::after{
   content:'';position:absolute;top:0;left:0;right:0;height:2px;
   background:var(--accent-color,var(--accent));
 }
-.kpi-label{font-size:0.65rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;}
-.kpi-value{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:var(--white);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.kpi-sub{font-size:0.62rem;color:var(--muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.kpi-delta{font-size:0.7rem;font-weight:600;margin-top:4px;}
+.kpi-label{font-size:0.62rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;font-weight:500;}
+.kpi-value{font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:var(--white);line-height:1.1;letter-spacing:-0.02em;}
+.kpi-exact{font-size:0.68rem;color:var(--muted);margin-top:4px;font-family:'DM Mono',monospace;letter-spacing:0.02em;}
+.kpi-sub{font-size:0.62rem;color:var(--muted);margin-top:3px;}
+.kpi-delta{font-size:0.72rem;font-weight:600;margin-top:5px;font-family:'DM Mono',monospace;}
 .kpi-delta.up{color:var(--green);}
 .kpi-delta.down{color:var(--red);}
 
@@ -104,6 +106,25 @@ body::before{
 .chart-title{font-family:'Syne',sans-serif;font-size:0.8rem;font-weight:700;color:var(--white);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
 .chart-title .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
 canvas{max-height:260px;}
+.mpill{cursor:pointer;padding:3px 9px;border-radius:12px;font-size:0.65rem;
+  border:1px solid var(--border);color:var(--muted);background:var(--surface);
+  transition:all 0.15s;white-space:nowrap;user-select:none;}
+.mpill.active{background:#00d4ff22;border-color:var(--accent);color:var(--accent);}
+.mpill:hover{border-color:#00d4ff66;color:var(--text);}
+.ms-wrap{position:relative;}
+.ms-btn{background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:6px 12px;color:var(--text);font-size:0.72rem;cursor:pointer;
+  min-width:180px;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.ms-btn:hover{border-color:#00d4ff66;}
+.ms-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:999;
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:6px;min-width:180px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px #00000066;}
+.ms-dropdown.open{display:block;}
+.ms-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:5px;
+  cursor:pointer;font-size:0.72rem;color:var(--text);transition:background 0.1s;}
+.ms-item:hover{background:#ffffff0a;}
+.ms-item input[type=checkbox]{accent-color:var(--accent);cursor:pointer;width:13px;height:13px;}
+.ms-item.checked{color:var(--accent);}
 
 /* Table */
 .table-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:20px;}
@@ -196,8 +217,13 @@ select:focus,input:focus{border-color:var(--accent);}
     <!-- Filters -->
     <div class="filters-row">
       <div class="filter-group">
-        <div class="filter-label">Período (MemberMonth)</div>
-        <select id="filter-month" onchange="applyFilters()"><option value="">Todos</option></select>
+        <div class="filter-label">Período — <span id="month-sel-count" style="color:var(--accent)">Todos</span></div>
+        <div class="ms-wrap">
+          <button class="ms-btn" onclick="toggleMsDropdown('ms-main')">
+            <span id="ms-main-label">Seleccionar meses</span><span>▾</span>
+          </button>
+          <div class="ms-dropdown" id="ms-main"></div>
+        </div>
       </div>
       <div class="filter-group">
         <div class="filter-label">Tipo de gasto (ClaimCat)</div>
@@ -266,24 +292,53 @@ select:focus,input:focus{border-color:var(--accent);}
     <!-- Miembros en déficit consecutivo -->
     <div class="charts-row">
       <div class="chart-card full">
-        <div class="chart-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <div style="display:flex;align-items:center;gap:8px">
+        <div class="chart-title" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;padding-top:4px">
             <div class="dot" style="background:#ef4444"></div>
             Miembros en Déficit Consecutivo
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <span style="font-size:0.68rem;color:var(--muted)">Meses mínimos en déficit:</span>
-            <select id="deficit-months-filter" onchange="updateDeficitChart()" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 8px;color:var(--text);font-size:0.72rem;width:auto;min-width:60px">
-              <option value="1">1+</option>
-              <option value="2" selected>2+</option>
-              <option value="3">3+</option>
-              <option value="4">4+</option>
-              <option value="6">6+</option>
-            </select>
-            <span id="deficit-consecutive-count" style="font-size:0.75rem;color:#ef4444;font-weight:700">— miembros</span>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+            <!-- Fila 1: controles -->
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:0.65rem;color:var(--muted)">Racha mín.:</span>
+              <select id="deficit-months-filter" onchange="updateDeficitChart()" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 8px;color:var(--text);font-size:0.72rem;min-width:55px">
+                <option value="1">1+</option>
+                <option value="2" selected>2+</option>
+                <option value="3">3+</option>
+                <option value="4">4+</option>
+                <option value="6">6+</option>
+              </select>
+              <button onclick="clearDeficitMonths()" style="background:transparent;border:1px solid var(--border);border-radius:5px;padding:3px 8px;color:var(--muted);font-size:0.65rem;cursor:pointer">↺ Limpiar</button>
+              <span id="deficit-consecutive-count" style="font-size:0.75rem;color:#ef4444;font-weight:700">— miembros</span>
+            </div>
+            <!-- Fila 2: select de meses -->
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+              <span style="font-size:0.62rem;color:var(--muted);white-space:nowrap">Filtrar por mes:</span>
+              <div class="ms-wrap">
+                <button class="ms-btn" onclick="toggleMsDropdown('ms-deficit')" style="min-width:160px;font-size:0.68rem">
+                  <span id="ms-deficit-label">Seleccionar meses</span><span>▾</span>
+                </button>
+                <div class="ms-dropdown" id="ms-deficit"></div>
+              </div>
+            </div>
           </div>
         </div>
-        <canvas id="chart-deficit-consecutive" style="max-height:280px"></canvas>
+        <div style="overflow-x:auto;max-height:340px;overflow-y:auto">
+          <table id="table-deficit-consecutive" style="width:100%;border-collapse:collapse;font-size:0.72rem">
+            <thead>
+              <tr>
+                <th style="background:#0d1117;color:var(--muted);text-align:left;padding:8px 12px;font-weight:500;letter-spacing:0.05em;position:sticky;top:0;border-bottom:1px solid var(--border);cursor:pointer;user-select:text">MemberID</th>
+                <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Racha máx.</th>
+                <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Meses déficit</th>
+                <th style="background:#0d1117;color:var(--muted);text-align:left;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Períodos en déficit</th>
+                <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Ingresos</th>
+                <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Gastos</th>
+                <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Déficit total</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-deficit-consecutive"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -554,26 +609,78 @@ function buildMasterData(){
 }
 
 // ── Filters ────────────────────────────────────────────────────
+let selectedMonths = new Set();
+
 function populateFilters(){
-  const months = [...new Set([...mmrData.map(r=>r.month),...claimsData.map(r=>r.month)].filter(Boolean))].sort();
+  const months = sortMonths([...new Set([...mmrData.map(r=>r.month),...claimsData.map(r=>r.month)].filter(Boolean))]);
   const cats   = [...new Set(claimsData.map(r=>r.claimCat).filter(Boolean))].sort();
 
-  const mSel = document.getElementById('filter-month');
-  months.forEach(m => { const o=document.createElement('option'); o.value=m; o.textContent=m; mSel.appendChild(o); });
+  // Llenar dropdown principal
+  buildMsDropdown('ms-main', months, selectedMonths, ()=>onMonthSelectChange());
+  // Llenar dropdown de déficit
+  buildMsDropdown('ms-deficit', months, deficitSelectedMonths, ()=>onDeficitMonthChange());
 
+  // Select de categorías
   const cSel = document.getElementById('filter-cat');
   cats.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; cSel.appendChild(o); });
 }
 
+function buildMsDropdown(id, months, selectedSet, onChange){
+  const container = document.getElementById(id);
+  if(!container) return;
+  container.innerHTML = months.map(m=>`
+    <label class="ms-item ${selectedSet.has(m)?'checked':''}" onclick="event.stopPropagation()">
+      <input type="checkbox" value="${m}" ${selectedSet.has(m)?'checked':''} onchange="msCbChange('${id}',this,'${m}')">
+      ${m}
+    </label>`).join('');
+}
+
+function msCbChange(dropdownId, cb, month){
+  if(dropdownId==='ms-main'){
+    if(cb.checked) selectedMonths.add(month); else selectedMonths.delete(month);
+    onMonthSelectChange();
+  } else {
+    if(cb.checked) deficitSelectedMonths.add(month); else deficitSelectedMonths.delete(month);
+    onDeficitMonthChange();
+  }
+  cb.parentElement.classList.toggle('checked', cb.checked);
+}
+
+function onDeficitMonthChange(){
+  const lbl = document.getElementById('ms-deficit-label');
+  if(lbl) lbl.textContent = deficitSelectedMonths.size===0?'Seleccionar meses':[...deficitSelectedMonths].slice(0,2).join(', ')+(deficitSelectedMonths.size>2?' +'+(deficitSelectedMonths.size-2):'');
+  updateDeficitChart();
+}
+
+function toggleMsDropdown(id){
+  document.querySelectorAll('.ms-dropdown').forEach(d=>{ if(d.id!==id) d.classList.remove('open'); });
+  document.getElementById(id)?.classList.toggle('open');
+}
+// Cerrar al click fuera
+document.addEventListener('click', e=>{ if(!e.target.closest('.ms-wrap')) document.querySelectorAll('.ms-dropdown').forEach(d=>d.classList.remove('open')); });
+
+function onMonthSelectChange(){
+  const countEl = document.getElementById('month-sel-count');
+  if(countEl) countEl.textContent = selectedMonths.size===0?'Todos':selectedMonths.size+' mes'+(selectedMonths.size!==1?'es':'');
+  const lbl = document.getElementById('ms-main-label');
+  if(lbl) lbl.textContent = selectedMonths.size===0?'Seleccionar meses':[...selectedMonths].slice(0,2).join(', ')+(selectedMonths.size>2?' +'+( selectedMonths.size-2):'');
+  applyFilters();
+}
+
 function clearFilters(){
-  document.getElementById('filter-month').value='';
+  selectedMonths.clear();
+  document.querySelectorAll('#ms-main input[type=checkbox]').forEach(cb=>{ cb.checked=false; cb.parentElement.classList.remove('checked'); });
+  const countEl=document.getElementById('month-sel-count');
+  if(countEl) countEl.textContent='Todos';
+  const lbl=document.getElementById('ms-main-label');
+  if(lbl) lbl.textContent='Seleccionar meses';
   document.getElementById('filter-cat').value='';
   document.getElementById('filter-member').value='';
   applyFilters();
 }
 
 function applyFilters(){
-  const month  = document.getElementById('filter-month').value;
+  const month  = null; // se usa selectedMonths directamente
   const cat    = document.getElementById('filter-cat').value;
   const member = document.getElementById('filter-member').value.toLowerCase().trim();
 
@@ -624,13 +731,10 @@ function updateKPIs(){
   const marginPct  = totalRev!==0?((margin/totalRev)*100).toFixed(1):0;
 
   document.getElementById('kpi-revenue').textContent    = fmtExact(totalRev);
-  document.getElementById('kpi-revenue').title = '$'+totalRev.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-  document.getElementById('kpi-revenue-sub').textContent= fmt(totalRev)+' · '+members+' miembros';
+  document.getElementById('kpi-revenue-sub').innerHTML  = '<span class="kpi-exact">'+fmt(totalRev)+'</span><br>'+members+' miembros';
   document.getElementById('kpi-claims').textContent     = fmtExact(totalClaim);
-  document.getElementById('kpi-claims').title = '$'+totalClaim.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-  document.getElementById('kpi-claims-sub').textContent = fmt(totalClaim);
+  document.getElementById('kpi-claims-sub').innerHTML   = '<span class="kpi-exact">'+fmt(totalClaim)+'</span>';
   document.getElementById('kpi-margin').textContent     = fmtExact(margin);
-  document.getElementById('kpi-margin').title = '$'+Math.abs(margin).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   document.getElementById('kpi-margin').style.color     = margin>=0?'var(--green)':'var(--red)';
   const mEl = document.getElementById('kpi-margin-pct');
   mEl.textContent = (margin>=0?'▲ ':'▼ ')+Math.abs(marginPct)+'% de los ingresos';
@@ -657,11 +761,11 @@ function sortMonths(arr){
 function updateCharts(monthFilter, catFilter, memberFilter){
   // Filtrar datos base según todos los filtros activos
   const fMMR    = mmrData.filter(r=>
-    (!monthFilter || r.month===monthFilter) &&
+    (selectedMonths.size===0 || selectedMonths.has(r.month)) &&
     (!memberFilter || r.memberId.toLowerCase().includes(memberFilter))
   );
   const fClaims = claimsData.filter(r=>
-    (!monthFilter || r.month===monthFilter) &&
+    (selectedMonths.size===0 || selectedMonths.has(r.month)) &&
     (!catFilter   || r.claimCat===catFilter) &&
     (!memberFilter || r.memberId.toLowerCase().includes(memberFilter))
   );
@@ -734,10 +838,10 @@ function updateCharts(monthFilter, catFilter, memberFilter){
   const mg = document.getElementById('chart-margin');
   // Unir todos los meses de revenue Y claims para no perder ninguno
   // Para Margen: usar TODOS los meses (sin filtro de mes) para ver tendencia completa
-  const fMMR_mg = mmrData.filter(r=> !memberFilter || r.memberId.toLowerCase().includes(memberFilter));
+  const fMMR_mg = mmrData.filter(r=>
+    (selectedMonths.size===0||selectedMonths.has(r.month)) && (!memberFilter||r.memberId.toLowerCase().includes(memberFilter)));
   const fClaims_mg = claimsData.filter(r=>
-    (!catFilter || r.claimCat===catFilter) &&
-    (!memberFilter || r.memberId.toLowerCase().includes(memberFilter))
+    (selectedMonths.size===0||selectedMonths.has(r.month)) && (!catFilter||r.claimCat===catFilter) && (!memberFilter||r.memberId.toLowerCase().includes(memberFilter))
   );
   const revMg={}, claimMg={};
   fMMR_mg.forEach(r=>{ revMg[r.month]=(revMg[r.month]||0)+r.revenue; });
@@ -812,12 +916,45 @@ function updateTable(){
   }).join('');
 }
 
+let deficitSelectedMonths = new Set();
+
+function initDeficitMonthPills(){
+  const allMonths = sortMonths([...new Set([...mmrData.map(r=>r.month),...claimsData.map(r=>r.month)].filter(Boolean))]);
+  const container = document.getElementById('deficit-month-pills');
+  if(!container) return;
+  container.innerHTML = allMonths.map(m=>`
+    <span onclick="toggleDeficitMonth('${m}')" id="dpill-${m.replace(/ /g,'_')}"
+      style="cursor:pointer;padding:2px 8px;border-radius:12px;font-size:0.62rem;border:1px solid var(--border);color:var(--muted);background:var(--surface);transition:all 0.15s;white-space:nowrap">
+      ${m}
+    </span>`).join('');
+}
+
+function toggleDeficitMonth(m){
+  if(deficitSelectedMonths.has(m)) deficitSelectedMonths.delete(m);
+  else deficitSelectedMonths.add(m);
+  const pill = document.getElementById('dpill-'+m.replace(/ /g,'_'));
+  if(pill){
+    pill.style.background    = deficitSelectedMonths.has(m)?'#ef444433':'var(--surface)';
+    pill.style.borderColor   = deficitSelectedMonths.has(m)?'#ef4444':'var(--border)';
+    pill.style.color         = deficitSelectedMonths.has(m)?'#ef4444':'var(--muted)';
+  }
+  updateDeficitChart();
+}
+
+function clearDeficitMonths(){
+  deficitSelectedMonths.clear();
+  document.querySelectorAll('[id^="dpill-"]').forEach(p=>{
+    p.style.background='var(--surface)';p.style.borderColor='var(--border)';p.style.color='var(--muted)';
+  });
+  updateDeficitChart();
+}
+
 function updateDeficitChart(){
   const minMonths = parseInt(document.getElementById('deficit-months-filter')?.value||2);
-  const member = document.getElementById('filter-member')?.value.toLowerCase().trim()||'';
+  const member    = document.getElementById('filter-member')?.value.toLowerCase().trim()||'';
+  const filterMonths = deficitSelectedMonths.size > 0 ? deficitSelectedMonths : null;
 
-  // Construir mapa: memberId → { mes: margen }
-  const memberMonthRev   = {}, memberMonthClaim = {};
+  const memberMonthRev={}, memberMonthClaim={};
 
   mmrData.filter(r=>!member||r.memberId.toLowerCase().includes(member)).forEach(r=>{
     if(!memberMonthRev[r.memberId]) memberMonthRev[r.memberId]={};
@@ -828,7 +965,6 @@ function updateDeficitChart(){
     memberMonthClaim[r.memberId][r.month]=(memberMonthClaim[r.memberId][r.month]||0)+r.amount;
   });
 
-  // Para cada miembro calcular meses en déficit y si son consecutivos
   const deficitMembers = [];
   const allMembers = [...new Set([...Object.keys(memberMonthRev),...Object.keys(memberMonthClaim)])];
 
@@ -836,14 +972,18 @@ function updateDeficitChart(){
     const revMap   = memberMonthRev[mid]||{};
     const claimMap = memberMonthClaim[mid]||{};
     const allM     = sortMonths([...new Set([...Object.keys(revMap),...Object.keys(claimMap)])]);
-
-    // Calcular margen por mes
     const margins  = allM.map(m=>(revMap[m]||0)-(claimMap[m]||0));
 
-    // Encontrar máxima racha consecutiva en déficit
+    // Meses específicos en déficit
+    const deficitMonthsList = allM.filter((m,i)=>margins[i]<0);
+
+    // Si hay filtro de mes: solo incluir si al menos uno de los meses seleccionados está en déficit para este miembro
+    if(filterMonths && !deficitMonthsList.some(m=>filterMonths.has(m))) return;
+
+    // Racha máxima consecutiva
     let maxStreak=0, currentStreak=0, totalDeficitMonths=0;
     margins.forEach(mg=>{
-      if(mg<0){ currentStreak++; totalDeficitMonths++; maxStreak=Math.max(maxStreak,currentStreak); }
+      if(mg<0){currentStreak++;totalDeficitMonths++;maxStreak=Math.max(maxStreak,currentStreak);}
       else currentStreak=0;
     });
 
@@ -851,88 +991,37 @@ function updateDeficitChart(){
       const totalRev   = Object.values(revMap).reduce((a,b)=>a+b,0);
       const totalClaim = Object.values(claimMap).reduce((a,b)=>a+b,0);
       deficitMembers.push({
-        memberId: mid,
-        maxStreak,
-        totalDeficitMonths,
-        totalRev,
-        totalClaim,
-        deficit: totalClaim-totalRev
+        memberId:mid, maxStreak, totalDeficitMonths,
+        totalRev, totalClaim, deficit:totalClaim-totalRev,
+        deficitMonths: deficitMonthsList
       });
     }
   });
 
-  // Ordenar por mayor racha consecutiva
-  deficitMembers.sort((a,b)=>b.maxStreak-a.maxStreak || b.deficit-a.deficit);
+  deficitMembers.sort((a,b)=>b.maxStreak-a.maxStreak||b.deficit-a.deficit);
 
   const countEl = document.getElementById('deficit-consecutive-count');
   if(countEl) countEl.textContent = deficitMembers.length+' miembros';
 
-  destroyChart('deficit-consecutive');
-  const ctx = document.getElementById('chart-deficit-consecutive');
-  if(!ctx||!deficitMembers.length) return;
+  const tbody2 = document.getElementById('tbody-deficit-consecutive');
+  if(!tbody2) return;
 
-  const top = deficitMembers.slice(0,30); // top 30 para no saturar
-  charts['deficit-consecutive'] = new Chart(ctx.getContext('2d'),{
-    type:'bar',
-    data:{
-      labels: top.map(m=>m.memberId),
-      datasets:[
-        {
-          label:'Meses consecutivos en déficit',
-          data: top.map(m=>m.maxStreak),
-          backgroundColor:'#ef444488',
-          borderColor:'#ef4444',
-          borderWidth:1.5,
-          borderRadius:4,
-          yAxisID:'y'
-        },
-        {
-          label:'Déficit total ($)',
-          data: top.map(m=>m.deficit),
-          backgroundColor:'#f59e0b44',
-          borderColor:'#f59e0b',
-          borderWidth:1.5,
-          borderRadius:4,
-          type:'bar',
-          yAxisID:'y2'
-        }
-      ]
-    },
-    options:{
-      responsive:true,
-      interaction:{mode:'index',intersect:false},
-      plugins:{
-        legend:{labels:{color:'#a0aec0',font:{size:10}}},
-        tooltip:{callbacks:{
-          label:ctx=>{
-            if(ctx.datasetIndex===0) return ' Racha: '+ctx.raw+' meses consecutivos';
-            return ' Déficit total: '+fmtK(ctx.raw);
-          },
-          afterBody:(items)=>{
-            const idx=items[0]?.dataIndex;
-            if(idx===undefined) return [];
-            const m=top[idx];
-            return ['─────────────','Ingresos: '+fmtK(m.totalRev),'Gastos: '+fmtK(m.totalClaim),'Total meses en déficit: '+m.totalDeficitMonths];
-          }
-        }}
-      },
-      scales:{
-        x:{ticks:{color:'#64748b',font:{size:9},maxRotation:45},grid:{color:'#1e2a3a'}},
-        y:{
-          position:'left',
-          ticks:{color:'#ef4444',font:{size:10},stepSize:1},
-          grid:{color:'#1e2a3a'},
-          title:{display:true,text:'Meses consecutivos',color:'#ef4444',font:{size:10}}
-        },
-        y2:{
-          position:'right',
-          ticks:{color:'#f59e0b',font:{size:10},callback:v=>fmtK(v)},
-          grid:{display:false},
-          title:{display:true,text:'Déficit ($)',color:'#f59e0b',font:{size:10}}
-        }
-      }
-    }
-  });
+  tbody2.innerHTML = deficitMembers.map(m=>{
+    const pillsHtml = m.deficitMonths.map(mo=>{
+      const isSelected = filterMonths && filterMonths.has(mo);
+      return `<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:0.58rem;margin:1px;
+        background:${isSelected?'#ef444444':'#ef444422'};color:#ef4444;border:1px solid ${isSelected?'#ef4444':'#ef444455'}">${mo}</span>`;
+    }).join('');
+    return `<tr style="border-bottom:1px solid #1e2a3a22;transition:background 0.15s" onmouseover="this.style.background='#ffffff06'" onmouseout="this.style.background=''">
+      <td style="padding:8px 12px;color:#00d4ff;font-family:'DM Mono',monospace;font-weight:500;cursor:text;user-select:all">${m.memberId}</td>
+      <td style="padding:8px 12px;text-align:right;color:#ef4444;font-weight:700">${m.maxStreak} mes${m.maxStreak!==1?'es':''}</td>
+      <td style="padding:8px 12px;text-align:right;color:#f59e0b">${m.totalDeficitMonths}</td>
+      <td style="padding:8px 12px;color:#a0aec0">${pillsHtml}</td>
+      <td style="padding:8px 12px;text-align:right;color:#10b981">${fmt(m.totalRev)}</td>
+      <td style="padding:8px 12px;text-align:right;color:#ef4444">${fmt(m.totalClaim)}</td>
+      <td style="padding:8px 12px;text-align:right;color:#ef4444;font-weight:600">▼ ${fmt(m.deficit)}</td>
+    </tr>`;
+  }).join('');
 }
 </script>
 </body>
