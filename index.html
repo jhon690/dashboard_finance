@@ -180,6 +180,20 @@ select:focus,input:focus{border-color:var(--accent);}
     <div style="display:flex;gap:8px;align-items:center">
       <div class="badge" id="file-badge">NO FILE LOADED</div>
       <div class="badge" id="members-badge" style="display:none"></div>
+      <button id="btn-load-activos" onclick="document.getElementById('file-activos').click()"
+        style="display:none;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:7px;
+        padding:6px 14px;color:#fff;font-family:'Syne',sans-serif;font-size:0.72rem;font-weight:700;
+        letter-spacing:0.05em;cursor:pointer;transition:all 0.2s">
+        ＋ Cargar Activos
+      </button>
+      <button id="btn-toggle-compare" onclick="toggleCompareMode()"
+        style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:7px;
+        padding:6px 14px;color:var(--muted);font-family:'Syne',sans-serif;font-size:0.72rem;font-weight:700;
+        letter-spacing:0.05em;cursor:pointer;transition:all 0.2s">
+        ⚖ Comparar
+      </button>
+      <input type="file" id="file-activos" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleActivosFile(this.files[0])"/>
+      <div class="badge" id="activos-badge" style="display:none;background:linear-gradient(135deg,#10b98122,#05966922);border-color:#10b98144;color:#10b981"></div>
     </div>
   </div>
 
@@ -214,7 +228,119 @@ select:focus,input:focus{border-color:var(--accent);}
   <!-- Dashboard -->
   <div id="dashboard">
 
-    <!-- Filters -->
+    <!-- Tabs de vista -->
+    <div id="view-tabs" style="display:none;margin-bottom:16px;border-bottom:1px solid var(--border)">
+      <button onclick="switchView('main')" id="tab-main"
+        style="background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);
+        padding:8px 18px;font-family:'Syne',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;letter-spacing:0.05em">
+        📊 Dashboard
+      </button>
+      <button onclick="switchView('compare')" id="tab-compare"
+        style="background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);
+        padding:8px 18px;font-family:'Syne',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;letter-spacing:0.05em">
+        ⚖ Activos vs Inactivos
+      </button>
+    </div>
+
+    <!-- Vista de comparación -->
+    <div id="view-compare" style="display:none">
+
+      <!-- Sección 1: Con gastos vs Sin gastos -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px">
+        <div style="font-family:'Syne',sans-serif;font-size:0.85rem;font-weight:700;color:var(--white);margin-bottom:14px;display:flex;align-items:center;gap:8px">
+          <span style="width:8px;height:8px;border-radius:50%;background:#00d4ff;display:inline-block"></span>
+          Miembros con Gastos vs Sin Gastos
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+          <div style="background:#0d1117;border:1px solid #10b98133;border-radius:10px;padding:16px">
+            <div style="font-size:0.62rem;color:#10b981;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px">Con Gastos (Claims)</div>
+            <div style="font-family:'DM Mono',monospace;font-size:1.8rem;font-weight:500;color:#10b981" id="cmp-con-gastos">—</div>
+            <div style="font-size:0.65rem;color:var(--muted);margin-top:4px" id="cmp-con-gastos-sub">—</div>
+            <div style="margin-top:10px;font-size:0.68rem;color:var(--muted)">Total gastos: <span id="cmp-total-gastos" style="color:#ef4444;font-weight:600">—</span></div>
+            <div style="font-size:0.68rem;color:var(--muted)">Total ingresos: <span id="cmp-total-ing-con" style="color:#10b981;font-weight:600">—</span></div>
+            <div style="font-size:0.68rem;color:var(--muted)">Margen: <span id="cmp-margen-con" style="font-weight:600">—</span></div>
+          </div>
+          <div style="background:#0d1117;border:1px solid #f59e0b33;border-radius:10px;padding:16px">
+            <div style="font-size:0.62rem;color:#f59e0b;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px">Sin Gastos (Sin Claims)</div>
+            <div style="font-family:'DM Mono',monospace;font-size:1.8rem;font-weight:500;color:#f59e0b" id="cmp-sin-gastos">—</div>
+            <div style="font-size:0.65rem;color:var(--muted);margin-top:4px" id="cmp-sin-gastos-sub">—</div>
+            <div style="margin-top:10px;font-size:0.68rem;color:var(--muted)">Total ingresos: <span id="cmp-total-ing-sin" style="color:#10b981;font-weight:600">—</span></div>
+            <div style="font-size:0.68rem;color:var(--muted)">Miembros solo MMR: <span id="cmp-solo-mmr" style="color:#f59e0b;font-weight:600">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección 2: Activos vs Inactivos (requiere archivo) -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div style="font-family:'Syne',sans-serif;font-size:0.85rem;font-weight:700;color:var(--white);display:flex;align-items:center;gap:8px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block"></span>
+            Activos vs Inactivos
+            <span id="activos-file-hint" style="font-size:0.65rem;color:#f59e0b;font-weight:400">— carga el archivo de activos para ver esta sección</span>
+          </div>
+          <button onclick="document.getElementById('file-activos').click()"
+            style="background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:7px;
+            padding:5px 14px;color:#fff;font-family:'Syne',sans-serif;font-size:0.7rem;font-weight:700;cursor:pointer">
+            ＋ Cargar archivo de activos
+          </button>
+        </div>
+
+        <div id="activos-compare-content" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div style="background:#0d1117;border:1px solid #10b98133;border-radius:10px;padding:16px">
+              <div style="font-size:0.62rem;color:#10b981;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px">✅ Clientes Activos</div>
+              <div style="font-family:'DM Mono',monospace;font-size:1.8rem;font-weight:500;color:#10b981" id="cmp-activos">—</div>
+              <div style="font-size:0.65rem;color:var(--muted);margin-top:4px" id="cmp-activos-pct">—</div>
+              <div style="margin-top:10px;font-size:0.68rem;color:var(--muted)">Ingresos: <span id="cmp-rev-activos" style="color:#10b981;font-weight:600">—</span></div>
+              <div style="font-size:0.68rem;color:var(--muted)">Gastos: <span id="cmp-claim-activos" style="color:#ef4444;font-weight:600">—</span></div>
+              <div style="font-size:0.68rem;color:var(--muted)">Margen: <span id="cmp-margen-activos" style="font-weight:600">—</span></div>
+            </div>
+            <div style="background:#0d1117;border:1px solid #ef444433;border-radius:10px;padding:16px">
+              <div style="font-size:0.62rem;color:#ef4444;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px">❌ Clientes Inactivos</div>
+              <div style="font-family:'DM Mono',monospace;font-size:1.8rem;font-weight:500;color:#ef4444" id="cmp-inactivos">—</div>
+              <div style="font-size:0.65rem;color:var(--muted);margin-top:4px" id="cmp-inactivos-pct">—</div>
+              <div style="margin-top:10px;font-size:0.68rem;color:var(--muted)">Ingresos: <span id="cmp-rev-inactivos" style="color:#10b981;font-weight:600">—</span></div>
+              <div style="font-size:0.68rem;color:var(--muted)">Gastos: <span id="cmp-claim-inactivos" style="color:#ef4444;font-weight:600">—</span></div>
+              <div style="font-size:0.68rem;color:var(--muted)">Margen: <span id="cmp-margen-inactivos" style="font-weight:600">—</span></div>
+            </div>
+          </div>
+
+          <!-- Tabla combinada -->
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <span style="font-size:0.65rem;color:var(--muted)">Filtrar:</span>
+            <select id="cmp-filter-status" onchange="renderCompareTable()"
+              style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:0.7rem">
+              <option value="all">Todos</option>
+              <option value="active">Solo Activos</option>
+              <option value="inactive">Solo Inactivos</option>
+              <option value="active_claims">Activos con gastos</option>
+              <option value="inactive_claims">Inactivos con gastos</option>
+            </select>
+            <input type="text" id="cmp-search" placeholder="Buscar MemberID..." oninput="renderCompareTable()"
+              style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text);font-size:0.7rem;width:160px"/>
+            <span id="cmp-row-count" style="font-size:0.65rem;color:var(--muted)"></span>
+          </div>
+          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:0.72rem">
+              <thead>
+                <tr>
+                  <th style="background:#0d1117;color:var(--muted);text-align:left;padding:8px 12px;position:sticky;top:0;border-bottom:1px solid var(--border)">MemberID</th>
+                  <th style="background:#0d1117;color:var(--muted);text-align:center;padding:8px 12px;position:sticky;top:0;border-bottom:1px solid var(--border)">Estado</th>
+                  <th style="background:#0d1117;color:var(--muted);text-align:center;padding:8px 12px;position:sticky;top:0;border-bottom:1px solid var(--border)">Gastos</th>
+                  <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;position:sticky;top:0;border-bottom:1px solid var(--border)">Ingresos</th>
+                  <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;position:sticky;top:0;border-bottom:1px solid var(--border)">Gastos ($)</th>
+                  <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;position:sticky;top:0;border-bottom:1px solid var(--border)">Margen</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-compare"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  <div id="view-main-content">
+  <!-- Filters -->
     <div class="filters-row">
       <div class="filter-group">
         <div class="filter-label">Período — <span id="month-sel-count" style="color:var(--accent)">Todos</span></div>
@@ -234,6 +360,14 @@ select:focus,input:focus{border-color:var(--accent);}
         <input type="text" id="filter-member" placeholder="ID del miembro..." oninput="applyFilters()"/>
       </div>
       <button class="btn-clear" onclick="clearFilters()">↺ Limpiar</button>
+      <div id="activos-toggle-wrap" style="display:none;align-self:flex-end">
+        <button id="btn-solo-activos" onclick="toggleSoloActivos()"
+          style="background:var(--surface);border:1px solid var(--border);border-radius:7px;
+          padding:7px 14px;color:var(--muted);font-size:0.72rem;cursor:pointer;transition:all 0.2s;
+          font-family:'DM Mono',monospace">
+          ✅ Ver solo Activos
+        </button>
+      </div>
     </div>
 
     <!-- KPIs -->
@@ -299,7 +433,7 @@ select:focus,input:focus{border-color:var(--accent);}
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
             <!-- Fila 1: controles -->
-            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <span style="font-size:0.65rem;color:var(--muted)">Racha mín.:</span>
               <select id="deficit-months-filter" onchange="updateDeficitChart()" style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:3px 8px;color:var(--text);font-size:0.72rem;min-width:55px">
                 <option value="1">1+</option>
@@ -308,6 +442,7 @@ select:focus,input:focus{border-color:var(--accent);}
                 <option value="4">4+</option>
                 <option value="6">6+</option>
               </select>
+
               <button onclick="clearDeficitMonths()" style="background:transparent;border:1px solid var(--border);border-radius:5px;padding:3px 8px;color:var(--muted);font-size:0.65rem;cursor:pointer">↺ Limpiar</button>
               <span id="deficit-consecutive-count" style="font-size:0.75rem;color:#ef4444;font-weight:700">— miembros</span>
             </div>
@@ -327,13 +462,13 @@ select:focus,input:focus{border-color:var(--accent);}
           <table id="table-deficit-consecutive" style="width:100%;border-collapse:collapse;font-size:0.72rem">
             <thead>
               <tr>
-                <th style="background:#0d1117;color:var(--muted);text-align:left;padding:8px 12px;font-weight:500;letter-spacing:0.05em;position:sticky;top:0;border-bottom:1px solid var(--border);cursor:pointer;user-select:text">MemberID</th>
-                <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Racha máx.</th>
-                <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Meses déficit</th>
+                <th style="background:#0d1117;color:var(--muted);text-align:left;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">MemberID</th>
+                <th onclick="setDeficitSort('streak')" style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border);cursor:pointer;user-select:none">Racha máx. <span id="sort-icon-streak">↓</span></th>
+                <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Meses déf.</th>
                 <th style="background:#0d1117;color:var(--muted);text-align:left;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Períodos en déficit</th>
-                <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Ingresos</th>
-                <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Gastos</th>
-                <th style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border)">Déficit total</th>
+                <th onclick="setDeficitSort('revenue')" style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border);cursor:pointer;user-select:none">Ingresos <span id="sort-icon-revenue">↕</span></th>
+                <th onclick="setDeficitSort('claims')" style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border);cursor:pointer;user-select:none">Gastos <span id="sort-icon-claims">↕</span></th>
+                <th onclick="setDeficitSort('deficit')" style="background:#0d1117;color:var(--muted);text-align:right;padding:8px 12px;font-weight:500;position:sticky;top:0;border-bottom:1px solid var(--border);cursor:pointer;user-select:none">Déficit total <span id="sort-icon-deficit">↕</span></th>
               </tr>
             </thead>
             <tbody id="tbody-deficit-consecutive"></tbody>
@@ -344,7 +479,23 @@ select:focus,input:focus{border-color:var(--accent);}
 
     <!-- Table -->
     <div class="table-card">
-      <div class="table-title">📋 Déficit &gt;90% — <span id="deficit-count" style="color:#ef4444">—</span> miembros</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <div class="table-title" style="margin:0">📋 Déficit — <span id="deficit-count" style="color:#ef4444">—</span> miembros</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:0.65rem;color:var(--muted)">Umbral %:</span>
+          <input type="number" id="deficit-pct-threshold" value="90" min="1" max="999"
+            onchange="updateTable()"
+            style="background:var(--surface);border:1px solid var(--border);border-radius:5px;
+            padding:3px 8px;color:var(--text);font-size:0.72rem;width:65px;text-align:center"/>
+          <span style="font-size:0.65rem;color:var(--muted)">% gasto/ingreso</span>
+          <div class="ms-wrap">
+            <button class="ms-btn" onclick="toggleMsDropdown('ms-deficit-table')" style="font-size:0.68rem;min-width:140px">
+              <span id="ms-deficit-table-label">Todos los meses</span><span>▾</span>
+            </button>
+            <div class="ms-dropdown" id="ms-deficit-table"></div>
+          </div>
+        </div>
+      </div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -362,6 +513,7 @@ select:focus,input:focus{border-color:var(--accent);}
       </div>
     </div>
 
+  </div><!-- /view-main-content -->
   </div><!-- /dashboard -->
 </div>
 
@@ -422,9 +574,10 @@ function detectSheets(){
                        (h+'').toLowerCase().replace(/\s/g,'').includes('partdrevenue'))){
       mmrSel.value = name;
     }
-    // Auto-seleccionar hojas de gastos
-    if(name.toLowerCase().includes('ffs') || name.toLowerCase().includes('raw data f') ||
-       ['rx','cap','otc','fdr'].some(k=>name.toLowerCase().includes(k))){
+    // Auto-seleccionar solo si tiene múltiples tipos (rx,cap,otc,fdr juntos = hoja combinada)
+    const nl = name.toLowerCase();
+    const tiposCombinados = ['rx','cap','otc','fdr'].filter(k=>nl.includes(k)).length;
+    if(tiposCombinados >= 2){
       div.classList.add('selected');
       div.querySelector('.sheet-dot').style.background = 'var(--accent)';
     }
@@ -501,6 +654,7 @@ function processData(){
       document.getElementById('dashboard').classList.add('show');
       document.getElementById('members-badge').style.display = 'block';
       document.getElementById('members-badge').textContent = masterData.length + ' MIEMBROS';
+      document.getElementById('btn-load-activos').style.display = 'block';
       populateFilters();
       applyFilters();
     }, 300);
@@ -610,6 +764,20 @@ function buildMasterData(){
 
 // ── Filters ────────────────────────────────────────────────────
 let selectedMonths = new Set();
+let deficitTableMonths = new Set();
+let soloActivos = false;
+
+function toggleSoloActivos(){
+  soloActivos = !soloActivos;
+  const btn = document.getElementById('btn-solo-activos');
+  if(btn){
+    btn.style.background     = soloActivos ? '#10b98133' : 'var(--surface)';
+    btn.style.borderColor    = soloActivos ? '#10b981'   : 'var(--border)';
+    btn.style.color          = soloActivos ? '#10b981'   : 'var(--muted)';
+    btn.textContent          = soloActivos ? '✅ Activos (ON)' : '✅ Ver solo Activos';
+  }
+  applyFilters();
+}
 
 function populateFilters(){
   const months = sortMonths([...new Set([...mmrData.map(r=>r.month),...claimsData.map(r=>r.month)].filter(Boolean))]);
@@ -619,6 +787,7 @@ function populateFilters(){
   buildMsDropdown('ms-main', months, selectedMonths, ()=>onMonthSelectChange());
   // Llenar dropdown de déficit
   buildMsDropdown('ms-deficit', months, deficitSelectedMonths, ()=>onDeficitMonthChange());
+  buildMsDropdown('ms-deficit-table', months, deficitTableMonths, ()=>onDeficitTableMonthChange());
 
   // Select de categorías
   const cSel = document.getElementById('filter-cat');
@@ -639,11 +808,20 @@ function msCbChange(dropdownId, cb, month){
   if(dropdownId==='ms-main'){
     if(cb.checked) selectedMonths.add(month); else selectedMonths.delete(month);
     onMonthSelectChange();
+  } else if(dropdownId==='ms-deficit-table'){
+    if(cb.checked) deficitTableMonths.add(month); else deficitTableMonths.delete(month);
+    onDeficitTableMonthChange();
   } else {
     if(cb.checked) deficitSelectedMonths.add(month); else deficitSelectedMonths.delete(month);
     onDeficitMonthChange();
   }
   cb.parentElement.classList.toggle('checked', cb.checked);
+}
+
+function onDeficitTableMonthChange(){
+  const lbl = document.getElementById('ms-deficit-table-label');
+  if(lbl) lbl.textContent = deficitTableMonths.size===0?'Todos los meses':[...deficitTableMonths].slice(0,2).join(', ')+(deficitTableMonths.size>2?' +'+(deficitTableMonths.size-2):'');
+  updateTable();
 }
 
 function onDeficitMonthChange(){
@@ -676,6 +854,9 @@ function clearFilters(){
   if(lbl) lbl.textContent='Seleccionar meses';
   document.getElementById('filter-cat').value='';
   document.getElementById('filter-member').value='';
+  soloActivos = false;
+  const btn=document.getElementById('btn-solo-activos');
+  if(btn){btn.style.background='var(--surface)';btn.style.borderColor='var(--border)';btn.style.color='var(--muted)';btn.textContent='✅ Ver solo Activos';}
   applyFilters();
 }
 
@@ -705,6 +886,20 @@ function applyFilters(){
   filteredData = Object.values(map).map(m=>({...m,margin:m.revenue-m.claims,months:[...m.months].sort(),cats:[...m.cats]}));
 
   if(member) filteredData = filteredData.filter(m=>m.memberId.toLowerCase().includes(member));
+  // Filtro solo activos — incluye activos sin datos financieros ($0)
+  if(soloActivos && activosIds.size > 0){
+    filteredData = filteredData.filter(m => activosIds.has(m.memberId));
+    // Agregar activos que no tienen ningún registro financiero
+    const idsEnData = new Set(filteredData.map(m=>m.memberId));
+    activosIds.forEach(id=>{
+      if(!idsEnData.has(id)){
+        filteredData.push({
+          memberId: id, revenue: 0, claims: 0, margin: 0,
+          months: [], cats: [], active: true, hasClaims: false
+        });
+      }
+    });
+  }
 
   updateKPIs();
   updateCharts(month, cat, member);
@@ -724,8 +919,24 @@ function fmtExact(n){
 }
 
 function updateKPIs(){
-  const totalRev   = filteredData.reduce((s,m)=>s+m.revenue,0);
-  const totalClaim = filteredData.reduce((s,m)=>s+m.claims,0);
+  // Calcular desde los datos fuente filtrados por mes/cat/member para precisión
+  const memberFilter = document.getElementById('filter-member')?.value.toLowerCase().trim()||'';
+  const catFilter    = document.getElementById('filter-cat')?.value||'';
+
+  const fMMR2 = mmrData.filter(r=>
+    (selectedMonths.size===0||selectedMonths.has(r.month)) &&
+    (!memberFilter||r.memberId.toLowerCase().includes(memberFilter)) &&
+    (!soloActivos||activosIds.size===0||activosIds.has(r.memberId))
+  );
+  const fClaims2 = claimsData.filter(r=>
+    (selectedMonths.size===0||selectedMonths.has(r.month)) &&
+    (!catFilter||r.claimCat===catFilter) &&
+    (!memberFilter||r.memberId.toLowerCase().includes(memberFilter)) &&
+    (!soloActivos||activosIds.size===0||activosIds.has(r.memberId))
+  );
+
+  const totalRev   = fMMR2.reduce((s,r)=>s+r.revenue,0);
+  const totalClaim = fClaims2.reduce((s,r)=>s+r.amount,0);
   const margin     = totalRev - totalClaim;
   const members    = filteredData.length;
   const marginPct  = totalRev!==0?((margin/totalRev)*100).toFixed(1):0;
@@ -739,7 +950,23 @@ function updateKPIs(){
   const mEl = document.getElementById('kpi-margin-pct');
   mEl.textContent = (margin>=0?'▲ ':'▼ ')+Math.abs(marginPct)+'% de los ingresos';
   mEl.className   = 'kpi-delta '+(margin>=0?'up':'down');
-  document.getElementById('kpi-members').textContent    = members.toLocaleString();
+  document.getElementById('kpi-members').textContent = members.toLocaleString();
+  const subEl = document.getElementById('kpi-members-sub');
+  if(subEl){
+    if(activosIds.size > 0){
+      const actCount  = filteredData.filter(m=>activosIds.has(m.memberId)).length;
+      const inactCount= filteredData.filter(m=>!activosIds.has(m.memberId)).length;
+      subEl.innerHTML = `
+        <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+          <span style="background:#10b98122;border:1px solid #10b98155;color:#10b981;
+            padding:2px 8px;border-radius:10px;font-size:0.65rem;font-weight:600">${actCount} Activos</span>
+          <span style="background:#ef444422;border:1px solid #ef444455;color:#ef4444;
+            padding:2px 8px;border-radius:10px;font-size:0.65rem;font-weight:600">${inactCount} Inactivos</span>
+        </div>`;
+    } else {
+      subEl.innerHTML = '<span style="font-size:0.62rem;color:var(--muted)">Únicos por MemberID</span>';
+    }
+  }
   document.getElementById('kpi-avg').textContent        = members?fmtK(totalClaim/members):'—';
   document.getElementById('kpi-avg-rev').textContent    = members?fmtK(totalRev/members):'—';
 }
@@ -762,12 +989,14 @@ function updateCharts(monthFilter, catFilter, memberFilter){
   // Filtrar datos base según todos los filtros activos
   const fMMR    = mmrData.filter(r=>
     (selectedMonths.size===0 || selectedMonths.has(r.month)) &&
-    (!memberFilter || r.memberId.toLowerCase().includes(memberFilter))
+    (!memberFilter || r.memberId.toLowerCase().includes(memberFilter)) &&
+    (!soloActivos || activosIds.size===0 || activosIds.has(r.memberId))
   );
   const fClaims = claimsData.filter(r=>
     (selectedMonths.size===0 || selectedMonths.has(r.month)) &&
     (!catFilter   || r.claimCat===catFilter) &&
-    (!memberFilter || r.memberId.toLowerCase().includes(memberFilter))
+    (!memberFilter || r.memberId.toLowerCase().includes(memberFilter)) &&
+    (!soloActivos || activosIds.size===0 || activosIds.has(r.memberId))
   );
 
   const allM = [...new Set([...fMMR.map(r=>r.month),...fClaims.map(r=>r.month)].filter(Boolean))];
@@ -786,8 +1015,34 @@ function updateCharts(monthFilter, catFilter, memberFilter){
         { label:'Ingresos (TotalRevenue)', data:months.map(m=>revByMonth[m]||0),
           borderColor:'#00d4ff', backgroundColor:'#00d4ff22', fill:true, tension:0.4, pointRadius:4 },
         { label:'Gastos (Plan)', data:months.map(m=>claimsByMonth[m]||0),
-          borderColor:'#ef4444', backgroundColor:'#ef444422', fill:true, tension:0.4, pointRadius:4 }
-      ]
+          borderColor:'#ef4444', backgroundColor:'#ef444422', fill:true, tension:0.4, pointRadius:4 },
+        (()=>{
+          // Línea de tendencia de gastos (regresión lineal)
+          const gastos = months.map(m=>claimsByMonth[m]||0);
+          const n = gastos.length;
+          if(n < 2) return null;
+          const xs = gastos.map((_,i)=>i);
+          const sumX  = xs.reduce((a,b)=>a+b,0);
+          const sumY  = gastos.reduce((a,b)=>a+b,0);
+          const sumXY = xs.reduce((a,i)=>a+i*gastos[i],0);
+          const sumX2 = xs.reduce((a,i)=>a+i*i,0);
+          const slope = (n*sumXY - sumX*sumY)/(n*sumX2 - sumX*sumX);
+          const intercept = (sumY - slope*sumX)/n;
+          const trend = xs.map(i=>Math.max(0, intercept + slope*i));
+          return {
+            label:'Tendencia Gastos',
+            data: trend,
+            borderColor:'#f59e0b',
+            backgroundColor:'transparent',
+            borderWidth:2,
+            borderDash:[6,4],
+            fill:false,
+            tension:0,
+            pointRadius:0,
+            pointHoverRadius:0
+          };
+        })()
+      ].filter(Boolean)
     },
     options:{responsive:true, interaction:{mode:'index',intersect:false},
       plugins:{
@@ -885,11 +1140,23 @@ function updateTable(){
   const tbody = document.getElementById('table-body');
 
   // Filtrar miembros con déficit > 90% (gastos >= 90% de ingresos)
+  const threshold = (parseFloat(document.getElementById('deficit-pct-threshold')?.value)||90) / 100;
+  // Recalcular revenue/claims por mes seleccionado si hay filtro de mes en la tabla
+  const useMonthFilter = deficitTableMonths.size > 0;
+  const getRevClaim = (m) => {
+    if(!useMonthFilter) return {rev: m.revenue, claim: m.claims};
+    const rev   = mmrData.filter(r=>r.memberId===m.memberId&&deficitTableMonths.has(r.month)).reduce((a,r)=>a+r.revenue,0);
+    const claim = claimsData.filter(r=>r.memberId===m.memberId&&deficitTableMonths.has(r.month)).reduce((a,r)=>a+r.amount,0);
+    return {rev, claim};
+  };
+
   const sorted = [...filteredData]
+    .map(m=>({...m, _rc: getRevClaim(m)}))
     .filter(m => {
-      if(m.revenue <= 0 && m.claims > 0) return true;
-      if(m.revenue <= 0) return false;
-      return (m.claims / m.revenue) >= 0.90;
+      const {rev, claim} = m._rc;
+      if(rev <= 0 && claim > 0) return true;
+      if(rev <= 0) return false;
+      return (claim / rev) >= threshold;
     })
     .sort((a,b) => {
       const pctA = a.revenue > 0 ? a.claims/a.revenue : 999;
@@ -901,14 +1168,15 @@ function updateTable(){
   if(defEl) defEl.textContent = sorted.length;
 
   tbody.innerHTML = sorted.map(m=>{
-    const gPct   = m.revenue > 0 ? ((m.claims/m.revenue)*100).toFixed(1) : '∞';
-    const deficit = m.claims - m.revenue;
+    const {rev: mRev, claim: mClaim} = m._rc || {rev: m.revenue, claim: m.claims};
+    const gPct   = mRev > 0 ? ((mClaim/mRev)*100).toFixed(1) : '∞';
+    const deficit = mClaim - mRev;
     const clsDef  = deficit > 0 ? 'td-red' : 'td-green';
     const clsPct  = parseFloat(gPct) >= 100 ? 'td-red' : 'td-orange';
     return `<tr>
       <td style="font-family:'Syne',sans-serif;font-weight:600;color:#00d4ff">${m.memberId}</td>
-      <td class="td-green">${fmt(m.revenue)}</td>
-      <td class="td-red">${fmt(m.claims)}</td>
+      <td class="td-green">${fmt(mRev)}</td>
+      <td class="td-red">${fmt(mClaim)}</td>
       <td class="${clsDef}">▼ ${fmt(Math.abs(deficit))}</td>
       <td class="${clsPct}" style="font-weight:700">${gPct}%</td>
       <td style="color:#64748b;font-size:0.65rem">${[...new Set(m.cats)].join(', ')||'—'}</td>
@@ -917,6 +1185,20 @@ function updateTable(){
 }
 
 let deficitSelectedMonths = new Set();
+let deficitSortCol = 'deficit';
+let deficitSortDir = 'desc';
+
+function setDeficitSort(col){
+  if(deficitSortCol === col) deficitSortDir = deficitSortDir==='desc'?'asc':'desc';
+  else { deficitSortCol = col; deficitSortDir = 'desc'; }
+  ['streak','revenue','claims','deficit'].forEach(c=>{
+    const el = document.getElementById('sort-icon-'+c);
+    if(!el) return;
+    el.textContent = c===deficitSortCol ? (deficitSortDir==='desc'?'↓':'↑') : '↕';
+    el.style.color = c===deficitSortCol ? 'var(--accent)' : '';
+  });
+  updateDeficitChart();
+}
 
 function initDeficitMonthPills(){
   const allMonths = sortMonths([...new Set([...mmrData.map(r=>r.month),...claimsData.map(r=>r.month)].filter(Boolean))]);
@@ -998,7 +1280,14 @@ function updateDeficitChart(){
     }
   });
 
-  deficitMembers.sort((a,b)=>b.maxStreak-a.maxStreak||b.deficit-a.deficit);
+  const dir = deficitSortDir==='desc'?-1:1;
+  deficitMembers.sort((a,b)=>{
+    if(deficitSortCol==='streak')  return dir*(b.maxStreak-a.maxStreak);
+    if(deficitSortCol==='revenue') return dir*(b.totalRev-a.totalRev);
+    if(deficitSortCol==='claims')  return dir*(b.totalClaim-a.totalClaim);
+    if(deficitSortCol==='deficit') return dir*(b.deficit-a.deficit);
+    return 0;
+  });
 
   const countEl = document.getElementById('deficit-consecutive-count');
   if(countEl) countEl.textContent = deficitMembers.length+' miembros';
@@ -1008,9 +1297,12 @@ function updateDeficitChart(){
 
   tbody2.innerHTML = deficitMembers.map(m=>{
     const pillsHtml = m.deficitMonths.map(mo=>{
-      const isSelected = filterMonths && filterMonths.has(mo);
+      const isSelected = deficitSelectedMonths.size>0 && deficitSelectedMonths.has(mo);
       return `<span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:0.58rem;margin:1px;
-        background:${isSelected?'#ef444444':'#ef444422'};color:#ef4444;border:1px solid ${isSelected?'#ef4444':'#ef444455'}">${mo}</span>`;
+        background:${isSelected?'#f59e0b44':'#ef444422'};
+        color:${isSelected?'#f59e0b':'#ef4444'};
+        border:1px solid ${isSelected?'#f59e0b':'#ef444455'};
+        font-weight:${isSelected?'700':'400'}">${mo}</span>`;
     }).join('');
     return `<tr style="border-bottom:1px solid #1e2a3a22;transition:background 0.15s" onmouseover="this.style.background='#ffffff06'" onmouseout="this.style.background=''">
       <td style="padding:8px 12px;color:#00d4ff;font-family:'DM Mono',monospace;font-weight:500;cursor:text;user-select:all">${m.memberId}</td>
@@ -1020,6 +1312,142 @@ function updateDeficitChart(){
       <td style="padding:8px 12px;text-align:right;color:#10b981">${fmt(m.totalRev)}</td>
       <td style="padding:8px 12px;text-align:right;color:#ef4444">${fmt(m.totalClaim)}</td>
       <td style="padding:8px 12px;text-align:right;color:#ef4444;font-weight:600">▼ ${fmt(m.deficit)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Archivo de activos ─────────────────────────────────────────
+let activosIds = new Set();
+
+function handleActivosFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const raw = XLSX.utils.sheet_to_json(ws, {defval:''});
+    if(!raw.length){ alert('El archivo no tiene datos'); return; }
+    const cols = Object.keys(raw[0]);
+    const idCol = findCol(cols, ['memberid','member_id','id','memberno']);
+    activosIds = new Set(raw.map(r=>(r[idCol]+'').trim()).filter(Boolean));
+    document.getElementById('activos-badge').style.display = 'block';
+    document.getElementById('activos-badge').textContent = activosIds.size + ' ACTIVOS';
+    document.getElementById('btn-toggle-compare').style.display = 'block';
+    document.getElementById('view-tabs').style.display = 'flex';
+    document.getElementById('activos-toggle-wrap').style.display = 'block';
+    buildCompareData();
+    switchView('compare');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function toggleCompareMode(){
+  const cur = document.getElementById('tab-compare').style.color;
+  switchView(cur === 'var(--muted)' ? 'compare' : 'main');
+}
+
+function switchView(v){
+  document.getElementById('view-compare').style.display = v==='compare'?'block':'none';
+  document.getElementById('view-main-content').style.display = v==='main'?'block':'none';
+  const tMain=document.getElementById('tab-main'), tCmp=document.getElementById('tab-compare');
+  if(tMain){ tMain.style.borderBottomColor=v==='main'?'var(--accent)':'transparent'; tMain.style.color=v==='main'?'var(--accent)':'var(--muted)'; }
+  if(tCmp){  tCmp.style.borderBottomColor=v==='compare'?'var(--accent)':'transparent'; tCmp.style.color=v==='compare'?'var(--accent)':'var(--muted)'; }
+  if(v==='compare'){ buildCompareData(); }
+}
+
+let compareData = [];
+
+function buildCompareData(){
+  compareData = masterData.map(m=>({
+    ...m,
+    active: activosIds.size > 0 ? activosIds.has(m.memberId) : null,
+    hasClaims: m.claims > 0
+  }));
+  activosIds.forEach(id=>{
+    if(!compareData.find(m=>m.memberId===id)){
+      compareData.push({memberId:id,revenue:0,claims:0,margin:0,months:[],cats:[],active:true,hasClaims:false});
+    }
+  });
+  updateCompareKPIs();
+  if(activosIds.size>0){
+    document.getElementById('activos-compare-content').style.display='block';
+    document.getElementById('activos-file-hint').style.display='none';
+    renderCompareTable();
+  }
+}
+
+function updateCompareKPIs(){
+  const total     = masterData.length;
+  const conGastos = masterData.filter(m=>m.claims>0);
+  const sinGastos = masterData.filter(m=>m.claims===0);
+  const soloMMR   = masterData.filter(m=>m.revenue>0&&m.claims===0);
+  const s = arr=>arr.reduce((a,m)=>a+m,0);
+
+  // Sección 1: con/sin gastos
+  document.getElementById('cmp-con-gastos').textContent     = conGastos.length;
+  document.getElementById('cmp-con-gastos-sub').textContent = ((conGastos.length/total)*100).toFixed(1)+'% del total';
+  document.getElementById('cmp-total-gastos').textContent   = fmtExact(conGastos.reduce((a,m)=>a+m.claims,0));
+  document.getElementById('cmp-total-ing-con').textContent  = fmtExact(conGastos.reduce((a,m)=>a+m.revenue,0));
+  const margenCon = conGastos.reduce((a,m)=>a+m.revenue,0)-conGastos.reduce((a,m)=>a+m.claims,0);
+  const mcEl = document.getElementById('cmp-margen-con');
+  mcEl.textContent = (margenCon>=0?'':'▼ ')+fmtExact(Math.abs(margenCon));
+  mcEl.style.color = margenCon>=0?'#10b981':'#ef4444';
+  document.getElementById('cmp-sin-gastos').textContent     = sinGastos.length;
+  document.getElementById('cmp-sin-gastos-sub').textContent = ((sinGastos.length/total)*100).toFixed(1)+'% del total';
+  document.getElementById('cmp-total-ing-sin').textContent  = fmtExact(sinGastos.reduce((a,m)=>a+m.revenue,0));
+  document.getElementById('cmp-solo-mmr').textContent       = soloMMR.length;
+
+  // Sección 2: activos/inactivos
+  if(activosIds.size===0) return;
+  const activos   = compareData.filter(m=>m.active);
+  const inactivos = compareData.filter(m=>!m.active);
+  const tot2      = compareData.length;
+  const setKpi = (id,val,color)=>{ const e=document.getElementById(id); if(e){e.textContent=val;if(color)e.style.color=color;} };
+  setKpi('cmp-activos',   activos.length);
+  setKpi('cmp-activos-pct', ((activos.length/tot2)*100).toFixed(1)+'% del total');
+  setKpi('cmp-inactivos', inactivos.length);
+  setKpi('cmp-inactivos-pct', ((inactivos.length/tot2)*100).toFixed(1)+'% del total');
+  setKpi('cmp-rev-activos',    fmtExact(activos.reduce((a,m)=>a+m.revenue,0)));
+  setKpi('cmp-claim-activos',  fmtExact(activos.reduce((a,m)=>a+m.claims,0)));
+  const ma = activos.reduce((a,m)=>a+m.revenue,0)-activos.reduce((a,m)=>a+m.claims,0);
+  setKpi('cmp-margen-activos', (ma>=0?'':'▼ ')+fmtExact(Math.abs(ma)), ma>=0?'#10b981':'#ef4444');
+  setKpi('cmp-rev-inactivos',  fmtExact(inactivos.reduce((a,m)=>a+m.revenue,0)));
+  setKpi('cmp-claim-inactivos',fmtExact(inactivos.reduce((a,m)=>a+m.claims,0)));
+  const mi = inactivos.reduce((a,m)=>a+m.revenue,0)-inactivos.reduce((a,m)=>a+m.claims,0);
+  setKpi('cmp-margen-inactivos',(mi>=0?'':'▼ ')+fmtExact(Math.abs(mi)), mi>=0?'#10b981':'#ef4444');
+}
+
+function renderCompareTable(){
+  const status = document.getElementById('cmp-filter-status')?.value||'all';
+  const search = (document.getElementById('cmp-search')?.value||'').toLowerCase().trim();
+  let data = [...compareData];
+  if(status==='active')          data=data.filter(m=>m.active);
+  if(status==='inactive')        data=data.filter(m=>!m.active);
+  if(status==='active_claims')   data=data.filter(m=>m.active&&m.claims>0);
+  if(status==='inactive_claims') data=data.filter(m=>!m.active&&m.claims>0);
+  if(search) data=data.filter(m=>m.memberId.toLowerCase().includes(search));
+  data.sort((a,b)=>b.claims-a.claims);
+  const countEl=document.getElementById('cmp-row-count');
+  if(countEl) countEl.textContent=data.length+' miembros';
+  document.getElementById('tbody-compare').innerHTML = data.map(m=>{
+    const margen=m.revenue-m.claims;
+    return `<tr style="border-bottom:1px solid #1e2a3a22">
+      <td style="padding:7px 12px;color:#00d4ff;font-family:'DM Mono',monospace;cursor:text;user-select:all">${m.memberId}</td>
+      <td style="padding:7px 12px;text-align:center">
+        <span style="padding:2px 9px;border-radius:10px;font-size:0.63rem;font-weight:700;
+          background:${m.active?'#10b98133':'#ef444433'};color:${m.active?'#10b981':'#ef4444'};
+          border:1px solid ${m.active?'#10b98155':'#ef444455'}">
+          ${m.active?'✅ Activo':'❌ Inactivo'}
+        </span>
+      </td>
+      <td style="padding:7px 12px;text-align:center;color:${m.claims>0?'#ef4444':'#64748b'}">
+        ${m.claims>0?'💸 Con gastos':'— Sin gastos'}
+      </td>
+      <td style="padding:7px 12px;text-align:right;color:#10b981">${fmt(m.revenue)}</td>
+      <td style="padding:7px 12px;text-align:right;color:#ef4444">${fmt(m.claims)}</td>
+      <td style="padding:7px 12px;text-align:right;color:${margen>=0?'#10b981':'#ef4444'};font-weight:600">
+        ${margen>=0?'':'▼ '}${fmt(Math.abs(margen))}
+      </td>
     </tr>`;
   }).join('');
 }
